@@ -1,101 +1,185 @@
 import streamlit as st
+from datetime import datetime, timedelta
+import time
 
-# Dark theme styling
-st.set_page_config(page_title="Travel Itinerary Planner", layout="wide")
+# 1. Page Configuration (Must be first)
+st.set_page_config(
+    page_title="AI Travel Planner Agent",
+    page_icon="✈️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# 2. Custom CSS for the "Pro" Look (Dark theme, Orange accents)
 st.markdown("""
     <style>
-        body {
-            background-color: #0d0d0d;
-        }
-        .title {
-            color: #ff6600;
-            font-size: 40px;
-            font-weight: bold;
-            text-align: center;
-        }
-        .section-title {
-            color: #ff6600;
-            font-size: 22px;
-            margin-bottom: 10px;
-        }
-        .result-box {
-            background-color: #1a1a1a;
-            padding: 20px;
-            border-radius: 10px;
-            color: white;
-            border: 1px solid #ff6600;
-        }
-        .input-box {
-            background-color: #1a1a1a;
-            padding: 20px;
-            border-radius: 10px;
-            color: white;
-            border: 1px solid #ff6600;
-        }
-        .stTextInput>div>div>input {
-            background-color: #262626;
-            color: white;
-        }
-        .stTextArea textarea {
-            background-color: #262626;
-            color: white;
-        }
-        .stButton>button {
-            background-color: #ff6600;
-            color: black;
-            border-radius: 5px;
-            font-size: 18px;
-        }
+    /* Main Background stuff */
+    .stApp {
+        background-color: #0E1117;
+        color: #FAFAFA;
+    }
+    
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background-color: #262730;
+    }
+    
+    /* Custom Button Style (Orange Gradient) */
+    div.stButton > button {
+        background: linear-gradient(45deg, #FF4B4B, #FF8F00);
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 10px;
+        font-weight: bold;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+    div.stButton > button:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
+    }
+
+    /* Itinerary Card Styling */
+    .day-card {
+        background-color: #1E1E1E;
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #333;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .time-slot {
+        color: #FF8F00;
+        font-weight: bold;
+        font-size: 1.1em;
+    }
+    .activity-title {
+        color: #FFFFFF;
+        font-size: 1.2em;
+        font-weight: 600;
+    }
+    .cost-tag {
+        background-color: #333;
+        padding: 2px 8px;
+        border-radius: 5px;
+        font-size: 0.8em;
+        color: #4CAF50;
+        margin-left: 10px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="title">Travel Itinerary Planner</div>', unsafe_allow_html=True)
-st.write("")
+# 3. Helper Function: Mock Data Generator (Placeholders until we connect CrewAI)
+def generate_mock_itinerary(dest, days, interests):
+    # This simulates the JSON output your CrewAI agent will eventually generate
+    itinerary = []
+    current_date = datetime.now()
+    
+    for i in range(1, days + 1):
+        day_plan = {
+            "day": i,
+            "date": (current_date + timedelta(days=i)).strftime("%B %d"),
+            "theme": f"Exploring {interests[0] if interests else 'Culture'} & Local Gems",
+            "activities": [
+                {"time": "09:00 AM", "activity": f"Breakfast at {dest}'s famous cafe", "cost": "$20"},
+                {"time": "11:00 AM", "activity": f"Visit the Top Museum in {dest}", "cost": "$45"},
+                {"time": "01:30 PM", "activity": "Local Street Food Tour", "cost": "$30"},
+                {"time": "04:00 PM", "activity": f"Relaxing walk through the city park", "cost": "Free"},
+                {"time": "07:30 PM", "activity": "Dinner with a View", "cost": "$60"},
+            ]
+        }
+        itinerary.append(day_plan)
+    return itinerary
 
-# Layout into 2 columns
-col1, col2 = st.columns([1, 1.2])
+# 4. Sidebar - User Inputs
+with st.sidebar:
+    st.title("🌍 AI Travel Agent")
+    st.markdown("---")
+    
+    # Inputs
+    destination = st.text_input("📍 Destination", placeholder="e.g., Paris, Tokyo, New York")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = st.date_input("📅 Start Date")
+    with col2:
+        duration = st.number_input("🌙 Days", min_value=1, max_value=30, value=3)
+        
+    budget = st.selectbox("💰 Budget Level", ["Budget ($)", "Moderate ($$)", "Luxury ($$$)"])
+    
+    interests = st.multiselect(
+        "❤️ Interests",
+        ["History", "Art", "Food", "Nature", "Shopping", "Nightlife", "Adventure"],
+        default=["Food", "Nature"]
+    )
+    
+    st.markdown("---")
+    
+    # The "Magic" Button
+    generate_btn = st.button("✨ Generate Itinerary")
 
-# Left column inputs
-with col1:
-    st.markdown('<div class="section-title">Enter your travel details</div>', unsafe_allow_html=True)
+# 5. Main Content Area
+if not generate_btn and "itinerary" not in st.session_state:
+    # Welcome Screen (State 0)
+    st.header("Welcome to your Personal Travel Agent")
+    st.markdown("""
+    This AI Agent will curate a perfect trip for you based on your preferences.
+    
+    **How it works:**
+    1. Enter your destination and dates.
+    2. Select your budget and interests.
+    3. Click **Generate** and watch the AI plan your trip.
+    """)
+    st.info("👈 Start by filling out the details in the sidebar!")
 
-    with st.container():
-        st.markdown('<div class="input-box">', unsafe_allow_html=True)
+else:
+    # Loading State
+    if generate_btn:
+        with st.spinner(f"🤖 AI Agents are researching {destination}..."):
+            # Simulate processing time for effect
+            progress_bar = st.progress(0)
+            for i in range(100):
+                time.sleep(0.01)
+                progress_bar.progress(i + 1)
+            
+            # Generate Data (Mock for now, real CrewAI later)
+            st.session_state.itinerary = generate_mock_itinerary(destination, duration, interests)
+    
+    # Result Display (State 1)
+    if "itinerary" in st.session_state:
+        data = st.session_state.itinerary
+        
+        st.header(f"✈️ Your Trip to {destination}")
+        st.markdown(f"**Duration:** {duration} Days | **Budget:** {budget}")
+        st.markdown("---")
 
-        city = st.text_input("Enter the city for your trip")
-        interests = st.text_area("Enter your interests (comma-separated)")
+        # Display Day by Day cards
+        for day in data:
+            with st.container():
+                # We use HTML to make it look like the "Second Photo" cards
+                st.markdown(f"""
+                <div class="day-card">
+                    <h3 style="margin-top:0;">🗓️ Day {day['day']}: {day['theme']}</h3>
+                    <p style="color:#888; margin-bottom:15px;">{day['date']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Activity Timeline using standard Streamlit columns for alignment
+                for act in day['activities']:
+                    c1, c2, c3 = st.columns([2, 6, 2])
+                    with c1:
+                        st.markdown(f"<span class='time-slot'>{act['time']}</span>", unsafe_allow_html=True)
+                    with c2:
+                        st.markdown(f"<span class='activity-title'>{act['activity']}</span>", unsafe_allow_html=True)
+                    with c3:
+                        st.markdown(f"<span class='cost-tag'>{act['cost']}</span>", unsafe_allow_html=True)
+                    st.divider()
 
-        col_btn1, col_btn2 = st.columns(2)
-
-        if col_btn1.button("Clear"):
-            st.experimental_rerun()
-
-        generate = col_btn2.button("Submit")
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# Right column output
-with col2:
-    st.markdown('<div class="section-title">Generated Itinerary</div>', unsafe_allow_html=True)
-
-    st.markdown('<div class="result-box">', unsafe_allow_html=True)
-
-    if generate:
-        # SAMPLE RESPONSE (Replace with your AI agent output)
-        itinerary = f"""
-### Here's your personalized itinerary for **{city}**:
-
-- **8:00 AM:** Visit the Ram Janmabhoomi Temple — sacred birthplace of Lord Rama.  
-- **10:00 AM:** Explore Hanuman Garhi, one of the oldest temples dedicated to Lord Hanuman.  
-- **12:30 PM:** Enjoy authentic Ayodhya lunch at a local restaurant.  
-- **2:00 PM:** Visit nearby ghats and temples based on your interests:  
-  - {interests}
-- **4:00 PM:** Sunset at Saryu River + local shopping.
-
-✨ This itinerary covers culture, spirituality, food & sightseeing.
-        """
-
-        st.markdown(itinerary)
-
-    st.markdown('</div>', unsafe_allow_html=True)
+        # Download Button
+        st.markdown("### 📥 Download Options")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.download_button("Download PDF", data="Mock PDF Content", file_name="trip.pdf")
+        with c2:
+            st.download_button("Add to Calendar", data="Mock ICS Content", file_name="trip.ics")
