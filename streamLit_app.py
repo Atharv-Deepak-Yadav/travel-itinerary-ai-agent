@@ -96,32 +96,54 @@ st.markdown("""
         font-weight: bold;
         color: #FF4B4B;
     }
+    /* Total Cost Highlight */
+    .total-cost-box {
+        background-color: #333333;
+        padding: 20px;
+        border-radius: 10px;
+        text-align: center;
+        margin-top: 30px;
+        border: 2px solid #FF8F00;
+    }
+    .total-cost-label {
+        color: #FF4B4B;
+        font-size: 1.2em;
+        font-weight: bold;
+    }
+    .total-cost-value {
+        color: #4CAF50;
+        font-size: 2.2em;
+        font-weight: bold;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Helper Function: Mock Data Generator (UPDATED TO INCLUDE FLIGHTS)
+# 3. Helper Function: Mock Data Generator (UPDATED TO CALCULATE TOTAL COST)
 def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, interests):
     budget_symbol = "₹" if currency == "Indian Rupees (₹)" else "$"
     
     # --- FLIGHT GENERATION LOGIC ---
-    # Define base flight prices for mock purposes (e.g., in USD before conversion)
     base_flight_prices = {
         "Budget": (150, 400),
         "Moderate": (400, 800),
         "Luxury": (800, 1500)
     }
     
-    # Mock conversion (very simple, non-accurate rate for demonstration)
+    # Mock conversion (1 USD = 83 INR for demonstration)
     conversion_rate = 83 if budget_symbol == "₹" else 1 
 
     flight_range = base_flight_prices.get(budget_level, base_flight_prices["Moderate"])
     
-    # Calculate flight price and round to the nearest 100 or 50 for Indian Rupees
-    raw_flight_price = random.randint(*flight_range) * conversion_rate
+    # Base price calculation (using USD range, then multiplying by rate)
+    raw_single_flight_price = random.randint(*flight_range) * conversion_rate
+    
+    # Rounding for clean currency display
     if budget_symbol == "₹":
-        flight_price = round(raw_flight_price / 100) * 100
+        single_flight_price = round(raw_single_flight_price / 100) * 100
     else:
-        flight_price = round(raw_flight_price / 5) * 5
+        single_flight_price = round(raw_single_flight_price / 5) * 5
+        
+    total_flight_cost = single_flight_price * 2 # Round trip
 
     return_date = start_date + timedelta(days=duration)
     
@@ -129,10 +151,11 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
         "outbound": {
             "date": start_date.strftime("%b %d, %Y"),
             "time": "08:30 AM",
-            "from": "Origin City", # Using a generic origin for mock data
+            "from": "Origin City",
             "to": dest,
             "airline": "AirGo",
-            "price": f"{budget_symbol} {flight_price}"
+            "price": single_flight_price, # Stored as raw number for total calculation
+            "display_price": f"{budget_symbol} {single_flight_price}"
         },
         "return": {
             "date": return_date.strftime("%b %d, %Y"),
@@ -140,11 +163,13 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
             "from": dest,
             "to": "Origin City",
             "airline": "AirGo",
-            "price": f"{budget_symbol} {flight_price}"
-        }
+            "price": single_flight_price, # Stored as raw number for total calculation
+            "display_price": f"{budget_symbol} {single_flight_price}"
+        },
+        "total_cost": total_flight_cost # Total flight cost
     }
     
-    # --- ITINERARY GENERATION LOGIC (Same as before, but using start_date correctly) ---
+    # --- ITINERARY GENERATION & DAILY COST CALCULATION ---
     cost_ranges = {
         "Budget": {"meal": (10, 30), "attraction": (20, 50), "misc": (5, 20)},
         "Moderate": {"meal": (30, 70), "attraction": (50, 100), "misc": (20, 50)},
@@ -153,18 +178,29 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
     current_cost_range = cost_ranges.get(budget_level, cost_ranges["Moderate"])
 
     itinerary = []
+    total_daily_cost = 0
     
     for i in range(duration):
         current_day_date = start_date + timedelta(days=i)
         
-        # Costs for the daily activities
-        breakfast_cost = random.randint(*current_cost_range["meal"])
-        museum_cost = random.randint(*current_cost_range["attraction"])
-        street_food_cost = random.randint(*current_cost_range["misc"])
-        dinner_cost = random.randint(*current_cost_range["meal"])
+        # Costs for the daily activities (Base costs are in USD, then convert)
+        breakfast_cost = random.randint(*current_cost_range["meal"]) * conversion_rate
+        museum_cost = random.randint(*current_cost_range["attraction"]) * conversion_rate
+        street_food_cost = random.randint(*current_cost_range["misc"]) * conversion_rate
+        dinner_cost = random.randint(*current_cost_range["meal"]) * conversion_rate
 
         if "Shopping" in interests and budget_level == "Luxury":
-            museum_cost += random.randint(20, 50) 
+            museum_cost += random.randint(20, 50) * conversion_rate
+        
+        # Rounding for clean display
+        breakfast_cost = round(breakfast_cost / 5) * 5
+        museum_cost = round(museum_cost / 5) * 5
+        street_food_cost = round(street_food_cost / 5) * 5
+        dinner_cost = round(dinner_cost / 5) * 5
+        
+        # Sum of costs for the day
+        daily_sum = breakfast_cost + museum_cost + street_food_cost + dinner_cost
+        total_daily_cost += daily_sum
 
         day_plan = {
             "day": i + 1,
@@ -176,36 +212,47 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
                 {"time": "01:30 PM", "activity": "Local Street Food Tour", "cost": f"{budget_symbol} {street_food_cost}"},
                 {"time": "04:00 PM", "activity": "Relaxing walk through the city park", "cost": "Free"},
                 {"time": "07:30 PM", "activity": "Dinner with a View", "cost": f"{budget_symbol} {dinner_cost}"},
-            ]
+            ],
+            "daily_cost": daily_sum # Stored raw number for total calculation
         }
         itinerary.append(day_plan)
         
-    return itinerary, flight_details
+    # --- FINAL TOTAL CALCULATION ---
+    total_travel_cost = total_daily_cost + total_flight_cost
+
+    return itinerary, flight_details, total_travel_cost, budget_symbol
+
 
 # 4. Data Converter for Text File (Download)
-def convert_itinerary_to_text_content(itinerary_data, destination, flight_data):
-    """Converts the itinerary and flight data into a readable text format."""
+def convert_itinerary_to_text_content(itinerary_data, destination, flight_data, total_cost, budget_symbol):
+    """Converts the itinerary, flight data, and total cost into a readable text format."""
     text_output = f"TRAVEL ITINERARY: {destination.upper()}\n"
     text_output += f"Generated On: {datetime.now().strftime('%Y-%m-%d')}\n\n"
     
-    # Add Flight Details to the text output
+    # Add Flight Details
     text_output += "✈️ FLIGHT DETAILS ✈️\n"
     text_output += "--------------------------------------------------------\n"
     out = flight_data["outbound"]
     ret = flight_data["return"]
     
-    text_output += f"OUTBOUND: {out['airline']} | {out['date']} @ {out['time']} | Price: {out['price']}\n"
+    text_output += f"OUTBOUND: {out['airline']} | {out['date']} @ {out['time']} | Price: {out['display_price']}\n"
     text_output += f"   -> Route: {out['from']} to {out['to']}\n"
-    text_output += f"RETURN:   {ret['airline']} | {ret['date']} @ {ret['time']} | Price: {ret['price']}\n"
+    text_output += f"RETURN:   {ret['airline']} | {ret['date']} @ {ret['time']} | Price: {ret['display_price']}\n"
     text_output += f"   -> Route: {ret['from']} to {ret['to']}\n"
     text_output += "--------------------------------------------------------\n\n"
     
-    # Add Daily Itinerary to the text output
+    # Add Daily Itinerary
     for day in itinerary_data:
         text_output += f"\n🗓️ DAY {day['day']}: {day['theme']} ({day['date']})\n"
         text_output += "--------------------------------------------------------\n"
         for act in day['activities']:
             text_output += f"{act['time']} | {act['cost']:<6} | {act['activity']}\n"
+        text_output += f"Daily Cost: {budget_symbol} {day['daily_cost']}\n" # Include daily cost in download
+        
+    # Add Total Cost
+    text_output += "\n========================================================\n"
+    text_output += f"TOTAL ESTIMATED TRAVEL COST (Flights + Daily): {budget_symbol} {total_cost}\n"
+    text_output += "========================================================\n"
         
     return text_output.encode('utf-8')
 
@@ -220,7 +267,6 @@ with st.sidebar:
     
     col1, col2 = st.columns(2)
     with col1:
-        # NOTE: start_date is now used in flight calculation
         start_date = st.date_input("📅 Start Date")
     with col2:
         duration = st.number_input("🌙 Days", min_value=1, max_value=30, value=3)
@@ -267,25 +313,29 @@ else:
                 time.sleep(0.01)
                 progress_bar.progress(i + 1)
             
-            # Generate Data - Receives both itinerary and flight details
-            itinerary_data, flight_details = generate_mock_itinerary(
+            # Generate Data - Receives itinerary, flight details, and total cost
+            itinerary_data, flight_details, total_cost, budget_symbol = generate_mock_itinerary(
                 destination, start_date, duration, budget_level, currency, interests
             )
             st.session_state.itinerary = itinerary_data
             st.session_state.flights = flight_details
+            st.session_state.total_cost = total_cost
+            st.session_state.budget_symbol = budget_symbol
             st.session_state.display_budget = f"{budget_level} ({currency})"
     
     # Result Display (State 1)
     if "itinerary" in st.session_state:
         data = st.session_state.itinerary
         flights = st.session_state.flights
+        total_cost = st.session_state.total_cost
+        budget_symbol = st.session_state.budget_symbol
 
         st.header(f"✈️ Your Trip to {destination}")
         st.markdown(f"**Duration:** {duration} Days | **Budget:** {st.session_state.display_budget}")
         st.markdown("---")
 
         
-        # --- NEW: FLIGHT DETAILS DISPLAY ---
+        # --- FLIGHT DETAILS DISPLAY ---
         st.subheader("🛫 Flight Details")
         
         col_out, col_ret = st.columns(2)
@@ -298,7 +348,7 @@ else:
                     <p class="flight-time">🕒 {flights['outbound']['time']} - {flights['outbound']['date']}</p>
                     <p>✈️ {flights['outbound']['airline']}</p>
                     <p>📍 {flights['outbound']['from']} → {flights['outbound']['to']}</p>
-                    <p>💵 **Price:** {flights['outbound']['price']}</p>
+                    <p>💵 **Price:** {flights['outbound']['display_price']}</p>
                 </div>
             """, unsafe_allow_html=True)
             
@@ -310,7 +360,7 @@ else:
                     <p class="flight-time">🕒 {flights['return']['time']} - {flights['return']['date']}</p>
                     <p>✈️ {flights['return']['airline']}</p>
                     <p>📍 {flights['return']['from']} → {flights['return']['to']}</p>
-                    <p>💵 **Price:** {flights['return']['price']}</p>
+                    <p>💵 **Price:** {flights['return']['display_price']}</p>
                 </div>
             """, unsafe_allow_html=True)
             
@@ -337,8 +387,22 @@ else:
                         st.markdown(f"<span class='cost-tag'>{act['cost']}</span>", unsafe_allow_html=True)
                     st.divider()
 
+        st.markdown("---")
+
+        # --- TOTAL COST DISPLAY (NEW) ---
+        st.markdown(f"""
+            <div class="total-cost-box">
+                <p class="total-cost-label">ESTIMATED TOTAL TRIP COST</p>
+                <p class="total-cost-value">{budget_symbol} {total_cost:,}</p>
+                <p style="color:#888; font-size:0.9em;">(Flights + Estimated Daily Expenses)</p>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+
+
         # 7. Download Option 
-        text_download_data = convert_itinerary_to_text_content(data, destination, flights)
+        text_download_data = convert_itinerary_to_text_content(data, destination, flights, total_cost, budget_symbol)
 
         st.markdown("### 📥 Download Itinerary")
         
