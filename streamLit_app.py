@@ -25,12 +25,16 @@ st.markdown("""
         background-color: #262730;
     }
     
-   // Current code excerpt:
-/* Ensuring all input labels and titles in the sidebar are white */
-.stTextInput label, .stDateInput label, .stNumberInput label, .stSelectbox label, .stMultiSelect label, 
-[data-testid="stSidebar"] .stTitle, [data-testid="stSidebar"] .stMarkdown {
-    color: #FFFFFF !important;
-}
+    /* GUARANTEED FIX: Ensuring all input labels and titles in the sidebar are white */
+    /* This line targets the specific data-testid for all input labels */
+    [data-testid="stSidebar"] label {
+        color: #FFFFFF !important;
+    }
+    
+    /* Existing specific selectors (kept for robustness) */
+    .stTextInput label, .stDateInput label, .stNumberInput label, .stSelectbox label, .stMultiSelect label, 
+    [data-testid="stSidebar"] .stTitle, [data-testid="stSidebar"] .stMarkdown {
+        color: #FFFFFF !important;
     }
     
     /* Custom Button Style (Orange Gradient) */
@@ -391,7 +395,7 @@ else:
 
         st.markdown("---")
 
-        # --- TOTAL COST DISPLAY (NEW) ---
+        # --- TOTAL COST DISPLAY ---
         st.markdown(f"""
             <div class="total-cost-box">
                 <p class="total-cost-label">ESTIMATED TOTAL TRIP COST</p>
