@@ -25,10 +25,12 @@ st.markdown("""
         background-color: #262730;
     }
     
-    /* Ensuring all input labels and titles in the sidebar are white */
-    .stTextInput label, .stDateInput label, .stNumberInput label, .stSelectbox label, .stMultiSelect label, 
-    [data-testid="stSidebar"] .stTitle, [data-testid="stSidebar"] .stMarkdown {
-        color: #FFFFFF !important;
+   // Current code excerpt:
+/* Ensuring all input labels and titles in the sidebar are white */
+.stTextInput label, .stDateInput label, .stNumberInput label, .stSelectbox label, .stMultiSelect label, 
+[data-testid="stSidebar"] .stTitle, [data-testid="stSidebar"] .stMarkdown {
+    color: #FFFFFF !important;
+}
     }
     
     /* Custom Button Style (Orange Gradient) */
