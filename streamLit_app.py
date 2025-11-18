@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import datetime, timedelta
 import time
-import random # Import for random cost generation
+import random
 
 # 1. Page Configuration (Must be first)
 st.set_page_config(
@@ -87,9 +87,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Helper Function: Mock Data Generator (UPDATED FOR DYNAMIC COSTS)
+# 3. Helper Function: Mock Data Generator (Dynamic Costs)
 def generate_mock_itinerary(dest, days, budget_level, currency, interests):
-    # Determine the symbol for display
     budget_symbol = "₹" if currency == "Indian Rupees (₹)" else "$"
 
     # Define cost ranges based on budget level for different activity types
@@ -105,22 +104,19 @@ def generate_mock_itinerary(dest, days, budget_level, currency, interests):
         }
     }
     
-    # Get the specific cost range for the selected budget_level
-    current_cost_range = cost_ranges.get(budget_level, cost_ranges["Moderate"]) # Default to Moderate if not found
+    current_cost_range = cost_ranges.get(budget_level, cost_ranges["Moderate"])
 
     itinerary = []
     current_date = datetime.now()
     
     for i in range(1, days + 1):
-        # Generate random costs within the defined ranges
         breakfast_cost = random.randint(*current_cost_range["meal"])
         museum_cost = random.randint(*current_cost_range["attraction"])
         street_food_cost = random.randint(*current_cost_range["misc"])
         dinner_cost = random.randint(*current_cost_range["meal"])
 
-        # Add a slight boost if 'Shopping' is an interest for mock purposes
         if "Shopping" in interests and budget_level == "Luxury":
-            museum_cost += random.randint(20, 50) # Mock increase for luxury shopping-focused trips
+            museum_cost += random.randint(20, 50) 
 
         day_plan = {
             "day": i,
@@ -139,7 +135,6 @@ def generate_mock_itinerary(dest, days, budget_level, currency, interests):
 
 # 4. Data Converter for Text File (Download)
 def convert_itinerary_to_text_content(itinerary_data, destination):
-    """Converts the itinerary data into a readable text format."""
     text_output = f"TRAVEL ITINERARY: {destination.upper()}\n"
     text_output += f"Generated On: {datetime.now().strftime('%Y-%m-%d')}\n\n"
     text_output += "--------------------------------------------------------\n"
@@ -181,3 +176,80 @@ with st.sidebar:
     )
     
     st.markdown("---")
+    
+    # The "Magic" Button (Placed at the very bottom of the sidebar to maximize visibility)
+    generate_btn = st.button("✨ Generate Itinerary", key="generate_btn_sidebar")
+
+
+# 6. Main Content Area (FIXED: Ensure welcome screen loads if no data is present)
+if not generate_btn and "itinerary" not in st.session_state:
+    # Welcome Screen (State 0) - Always displayed in the main area when no itinerary exists
+    st.header("✈️ Welcome to your Personal Travel Agent")
+    st.markdown("""
+    This AI Agent will curate a perfect trip for you based on your preferences.
+    
+    **How it works:**
+    1. Enter your destination and dates in the sidebar on the left.
+    2. Select your budget and specific interests.
+    3. Click the **Generate Itinerary** button below the inputs!
+    """)
+    st.info("👈 Fill out the details in the sidebar and click the button to begin planning!")
+
+else:
+    # Loading State
+    if generate_btn:
+        with st.spinner(f"🤖 AI Agents are researching {destination}..."):
+            # Simulate processing time for effect
+            progress_bar = st.progress(0)
+            for i in range(100):
+                time.sleep(0.01)
+                progress_bar.progress(i + 1)
+            
+            # Generate Data 
+            st.session_state.itinerary = generate_mock_itinerary(
+                destination, duration, budget_level, currency, interests
+            )
+            # Store inputs for display
+            st.session_state.display_budget = f"{budget_level} ({currency})"
+    
+    # Result Display (State 1)
+    if "itinerary" in st.session_state:
+        data = st.session_state.itinerary
+        
+        st.header(f"✈️ Your Trip to {destination}")
+        st.markdown(f"**Duration:** {duration} Days | **Budget:** {st.session_state.display_budget}")
+        st.markdown("---")
+
+        # Display Day by Day cards
+        for day in data:
+            with st.container():
+                st.markdown(f"""
+                <div class="day-card">
+                    <h3 style="margin-top:0;">🗓️ Day {day['day']}: {day['theme']}</h3>
+                    <p style="color:#888; margin-bottom:15px;">{day['date']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Activity Timeline 
+                for act in day['activities']:
+                    c1, c2, c3 = st.columns([2, 6, 2])
+                    with c1:
+                        st.markdown(f"<span class='time-slot'>{act['time']}</span>", unsafe_allow_html=True)
+                    with c2:
+                        st.markdown(f"<span class='activity-title'>{act['activity']}</span>", unsafe_allow_html=True)
+                    with c3:
+                        st.markdown(f"<span class='cost-tag'>{act['cost']}</span>", unsafe_allow_html=True)
+                    st.divider()
+
+        # 7. Download Option 
+        text_download_data = convert_itinerary_to_text_content(data, destination)
+
+        st.markdown("### 📥 Download Itinerary")
+        
+        st.download_button(
+            label="Download Itinerary as Text", 
+            data=text_download_data, 
+            file_name=f"{destination}_itinerary.txt", 
+            mime="text/plain", 
+            use_container_width=True
+        )
