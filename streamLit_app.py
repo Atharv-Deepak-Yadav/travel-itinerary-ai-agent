@@ -96,14 +96,6 @@ def generate_mock_itinerary(dest, days, budget_level, currency, interests):
     current_date = datetime.now()
     
     for i in range(1, days + 1):
-        # Mock cost generation based on budget level for demonstration
-        if budget_level == "Budget":
-            cost = f"{budget_symbol} 100"
-        elif budget_level == "Luxury":
-            cost = f"{budget_symbol} 500"
-        else:
-            cost = f"{budget_symbol} 250"
-
         day_plan = {
             "day": i,
             "date": (current_date + timedelta(days=i)).strftime("%B %d"),
@@ -121,8 +113,7 @@ def generate_mock_itinerary(dest, days, budget_level, currency, interests):
 
 # 4. Data Converter for PDF (Text Content)
 def convert_itinerary_to_pdf_content(itinerary_data, destination):
-    """Converts the itinerary data into a readable text format, 
-       which will be saved as a .pdf file."""
+    """Converts the itinerary data into a readable text format."""
     text_output = f"TRAVEL ITINERARY: {destination.upper()}\n"
     text_output += f"Generated On: {datetime.now().strftime('%Y-%m-%d')}\n\n"
     text_output += "--------------------------------------------------------\n"
@@ -131,7 +122,7 @@ def convert_itinerary_to_pdf_content(itinerary_data, destination):
         text_output += f"\nDAY {day['day']}: {day['theme']} ({day['date']})\n"
         text_output += "--------------------------------------------------------\n"
         for act in day['activities']:
-            # Note: We use the actual cost value from the mock data, which includes the symbol.
+            # Using the cost value which already includes the currency symbol
             text_output += f"{act['time']} | {act['cost']:<6} | {act['activity']}\n"
         
     return text_output.encode('utf-8')
@@ -230,17 +221,18 @@ else:
                         st.markdown(f"<span class='cost-tag'>{act['cost']}</span>", unsafe_allow_html=True)
                     st.divider()
 
-        # 7. Download Option (Single PDF button is restored)
+        # 7. Download Option (Single Download button)
         
         # Prepare data for download
         pdf_data = convert_itinerary_to_pdf_content(data, destination)
 
         st.markdown("### 📥 Download Itinerary")
         
+        # We download as .txt with application/pdf mime type to get a readable file
         st.download_button(
-            label="Download as PDF", 
+            label="Download Itinerary", 
             data=pdf_data, 
-            file_name=f"{destination}_itinerary.pdf",
-            mime="application/pdf", # Forces the file to download as a .pdf
+            file_name=f"{destination}_itinerary.txt", # Download as .txt so it opens
+            mime="text/plain", 
             use_container_width=True
         )
