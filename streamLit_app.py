@@ -2,7 +2,6 @@ import streamlit as st
 from datetime import datetime, timedelta
 import time
 import pandas as pd
-# Removed 'from fpdf import FPDF' to fix the NameError
 
 # 1. Page Configuration (Must be first)
 st.set_page_config(
@@ -89,28 +88,38 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 3. Helper Function: Mock Data Generator
-def generate_mock_itinerary(dest, days, interests):
+def generate_mock_itinerary(dest, days, budget_level, currency, interests):
+    # Determine the symbol for display
+    budget_symbol = "₹" if currency == "Indian Rupees (₹)" else "$"
+    
     itinerary = []
     current_date = datetime.now()
     
     for i in range(1, days + 1):
+        # Mock cost generation based on budget level for demonstration
+        if budget_level == "Budget":
+            cost = f"{budget_symbol} 100"
+        elif budget_level == "Luxury":
+            cost = f"{budget_symbol} 500"
+        else:
+            cost = f"{budget_symbol} 250"
+
         day_plan = {
             "day": i,
             "date": (current_date + timedelta(days=i)).strftime("%B %d"),
             "theme": f"Exploring {interests[0] if interests else 'Culture'} & Local Gems",
             "activities": [
-                {"time": "09:00 AM", "activity": f"Breakfast at {dest}'s famous cafe", "cost": "$20"},
-                {"time": "11:00 AM", "activity": f"Visit the Top Museum in {dest}", "cost": "$45"},
-                {"time": "01:30 PM", "activity": "Local Street Food Tour", "cost": "$30"},
+                {"time": "09:00 AM", "activity": f"Breakfast at {dest}'s famous cafe", "cost": f"{budget_symbol} 20"},
+                {"time": "11:00 AM", "activity": f"Visit the Top Museum in {dest}", "cost": f"{budget_symbol} 45"},
+                {"time": "01:30 PM", "activity": "Local Street Food Tour", "cost": f"{budget_symbol} 15"},
                 {"time": "04:00 PM", "activity": f"Relaxing walk through the city park", "cost": "Free"},
-                {"time": "07:30 PM", "activity": "Dinner with a View", "cost": "$60"},
+                {"time": "07:30 PM", "activity": "Dinner with a View", "cost": f"{budget_symbol} 60"},
             ]
         }
         itinerary.append(day_plan)
     return itinerary
 
 # 4. Data Converter for PDF (Text Content)
-
 def convert_itinerary_to_pdf_content(itinerary_data, destination):
     """Converts the itinerary data into a readable text format, 
        which will be saved as a .pdf file."""
@@ -122,6 +131,7 @@ def convert_itinerary_to_pdf_content(itinerary_data, destination):
         text_output += f"\nDAY {day['day']}: {day['theme']} ({day['date']})\n"
         text_output += "--------------------------------------------------------\n"
         for act in day['activities']:
+            # Note: We use the actual cost value from the mock data, which includes the symbol.
             text_output += f"{act['time']} | {act['cost']:<6} | {act['activity']}\n"
         
     return text_output.encode('utf-8')
@@ -140,9 +150,14 @@ with st.sidebar:
         start_date = st.date_input("📅 Start Date")
     with col2:
         duration = st.number_input("🌙 Days", min_value=1, max_value=30, value=3)
+
+    # ADDED CURRENCY SELECTION
+    col3, col4 = st.columns(2)
+    with col3:
+        currency = st.selectbox("💲 Currency", ["US Dollars ($)", "Indian Rupees (₹)"])
+    with col4:
+        budget_level = st.selectbox("💰 Budget Level", ["Budget", "Moderate", "Luxury"])
         
-    budget = st.selectbox("💰 Budget Level", ["Budget ($)", "Moderate ($$)", "Luxury ($$$)"])
-    
     interests = st.multiselect(
         "❤️ Interests",
         ["History", "Art", "Food", "Nature", "Shopping", "Nightlife", "Adventure"],
@@ -178,15 +193,20 @@ else:
                 time.sleep(0.01)
                 progress_bar.progress(i + 1)
             
-            # Generate Data (Mock for now, real CrewAI later)
-            st.session_state.itinerary = generate_mock_itinerary(destination, duration, interests)
+            # Generate Data (passing budget level and currency to mock generator)
+            st.session_state.itinerary = generate_mock_itinerary(
+                destination, duration, budget_level, currency, interests
+            )
+            # Store inputs for display
+            st.session_state.display_budget = f"{budget_level} ({currency})"
     
     # Result Display (State 1)
     if "itinerary" in st.session_state:
         data = st.session_state.itinerary
         
         st.header(f"✈️ Your Trip to {destination}")
-        st.markdown(f"**Duration:** {duration} Days | **Budget:** {budget}")
+        # Use the stored display budget
+        st.markdown(f"**Duration:** {duration} Days | **Budget:** {st.session_state.display_budget}")
         st.markdown("---")
 
         # Display Day by Day cards
@@ -208,3 +228,19 @@ else:
                         st.markdown(f"<span class='activity-title'>{act['activity']}</span>", unsafe_allow_html=True)
                     with c3:
                         st.markdown(f"<span class='cost-tag'>{act['cost']}</span>", unsafe_allow_html=True)
+                    st.divider()
+
+        # 7. Download Option (Single PDF button is restored)
+        
+        # Prepare data for download
+        pdf_data = convert_itinerary_to_pdf_content(data, destination)
+
+        st.markdown("### 📥 Download Itinerary")
+        
+        st.download_button(
+            label="Download as PDF", 
+            data=pdf_data, 
+            file_name=f"{destination}_itinerary.pdf",
+            mime="application/pdf", # Forces the file to download as a .pdf
+            use_container_width=True
+        )
