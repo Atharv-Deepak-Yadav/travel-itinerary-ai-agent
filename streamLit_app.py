@@ -2,8 +2,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 import time
 import pandas as pd
-import io 
-from fpdf import FPDF # We import this as a placeholder, but we will use text content below
+# Removed 'from fpdf import FPDF' to fix the NameError
 
 # 1. Page Configuration (Must be first)
 st.set_page_config(
@@ -44,14 +43,11 @@ st.markdown("""
         width: 100%;
         transition: all 0.3s ease;
     }
-    /* FIX: Remove white hover effect on the custom-styled button */
+    /* FIX: Remove white hover effect and customize hover appearance */
     div.stButton > button:hover {
         transform: scale(1.02);
         box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
-        /* The key is to override Streamlit's default hover styles for 'secondary' buttons.
-        Since we gave it a strong background, we set the background on hover to be the same 
-        or slightly darker gradient to hide the white.
-        */
+        /* Slight color change on hover to hide the default white shadow */
         background: linear-gradient(45deg, #D44040, #D47A00) !important; 
         color: white !important;
         border-color: transparent !important;
@@ -113,10 +109,10 @@ def generate_mock_itinerary(dest, days, interests):
         itinerary.append(day_plan)
     return itinerary
 
-# 4. NEW Helper Function: Data Converter for PDF (Text Content)
+# 4. Data Converter for PDF (Text Content)
 
 def convert_itinerary_to_pdf_content(itinerary_data, destination):
-    """Converts the itinerary data into a readable text/markdown format, 
+    """Converts the itinerary data into a readable text format, 
        which will be saved as a .pdf file."""
     text_output = f"TRAVEL ITINERARY: {destination.upper()}\n"
     text_output += f"Generated On: {datetime.now().strftime('%Y-%m-%d')}\n\n"
@@ -124,4 +120,91 @@ def convert_itinerary_to_pdf_content(itinerary_data, destination):
     
     for day in itinerary_data:
         text_output += f"\nDAY {day['day']}: {day['theme']} ({day['date']})\n"
-        text_output += "--------------------------------------------------------\n
+        text_output += "--------------------------------------------------------\n"
+        for act in day['activities']:
+            text_output += f"{act['time']} | {act['cost']:<6} | {act['activity']}\n"
+        
+    return text_output.encode('utf-8')
+
+
+# 5. Sidebar - User Inputs
+with st.sidebar:
+    st.title("🌍 AI Travel Agent")
+    st.markdown("---")
+    
+    # Inputs 
+    destination = st.text_input("📍 Destination", placeholder="e.g., Paris, Tokyo, New York")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = st.date_input("📅 Start Date")
+    with col2:
+        duration = st.number_input("🌙 Days", min_value=1, max_value=30, value=3)
+        
+    budget = st.selectbox("💰 Budget Level", ["Budget ($)", "Moderate ($$)", "Luxury ($$$)"])
+    
+    interests = st.multiselect(
+        "❤️ Interests",
+        ["History", "Art", "Food", "Nature", "Shopping", "Nightlife", "Adventure"],
+        default=["Food", "Nature"]
+    )
+    
+    st.markdown("---")
+    
+    # The "Magic" Button
+    generate_btn = st.button("✨ Generate Itinerary")
+
+# 6. Main Content Area
+if not generate_btn and "itinerary" not in st.session_state:
+    # Welcome Screen (State 0)
+    st.header("Welcome to your Personal Travel Agent")
+    st.markdown("""
+    This AI Agent will curate a perfect trip for you based on your preferences.
+    
+    **How it works:**
+    1. Enter your destination and dates.
+    2. Select your budget and interests.
+    3. Click **Generate** and watch the AI plan your trip.
+    """)
+    st.info("👈 Start by filling out the details in the sidebar!")
+
+else:
+    # Loading State
+    if generate_btn:
+        with st.spinner(f"🤖 AI Agents are researching {destination}..."):
+            # Simulate processing time for effect
+            progress_bar = st.progress(0)
+            for i in range(100):
+                time.sleep(0.01)
+                progress_bar.progress(i + 1)
+            
+            # Generate Data (Mock for now, real CrewAI later)
+            st.session_state.itinerary = generate_mock_itinerary(destination, duration, interests)
+    
+    # Result Display (State 1)
+    if "itinerary" in st.session_state:
+        data = st.session_state.itinerary
+        
+        st.header(f"✈️ Your Trip to {destination}")
+        st.markdown(f"**Duration:** {duration} Days | **Budget:** {budget}")
+        st.markdown("---")
+
+        # Display Day by Day cards
+        for day in data:
+            with st.container():
+                st.markdown(f"""
+                <div class="day-card">
+                    <h3 style="margin-top:0;">🗓️ Day {day['day']}: {day['theme']}</h3>
+                    <p style="color:#888; margin-bottom:15px;">{day['date']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # Activity Timeline using standard Streamlit columns for alignment
+                for act in day['activities']:
+                    c1, c2, c3 = st.columns([2, 6, 2])
+                    with c1:
+                        st.markdown(f"<span class='time-slot'>{act['time']}</span>", unsafe_allow_html=True)
+                    with c2:
+                        st.markdown(f"<span class='activity-title'>{act['activity']}</span>", unsafe_allow_html=True)
+                    with c3:
+                        st.markdown(f"<span class='cost-tag'>{act['cost']}</span>", unsafe_allow_html=True)
