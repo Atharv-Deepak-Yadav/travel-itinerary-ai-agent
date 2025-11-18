@@ -25,12 +25,16 @@ st.markdown("""
         background-color: #262730;
     }
     
-    /* GUARANTEED FIX: Ensuring all input labels and titles in the sidebar are white */
-    /* This line targets the specific data-testid for all input labels */
+    /* GUARANTEED FIX 1: Ensuring all input labels in the sidebar are white */
     [data-testid="stSidebar"] label {
         color: #FFFFFF !important;
     }
     
+    /* FIX 2: Explicitly targeting the sidebar title to be white */
+    [data-testid="stSidebar"] [data-testid="stTitle"] {
+        color: #FFFFFF !important;
+    }
+
     /* Existing specific selectors (kept for robustness) */
     .stTextInput label, .stDateInput label, .stNumberInput label, .stSelectbox label, .stMultiSelect label, 
     [data-testid="stSidebar"] .stTitle, [data-testid="stSidebar"] .stMarkdown {
