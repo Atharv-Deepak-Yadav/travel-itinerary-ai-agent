@@ -2,9 +2,7 @@ import os, json, time
 import streamlit as st
 from datetime import datetime, timedelta
 from dateutil import parser
-import random # <--- Added for better randomization
-
-# Optional: requests for calling CrewAI AMP
+import random 
 import requests
 
 st.set_page_config(page_title="Travel Itinerary Planner (Colab POV)", layout="wide")
@@ -17,7 +15,6 @@ with st.sidebar:
     start_date = st.date_input("Start date", value=datetime.now().date())
     trip_days = st.slider("Trip length (days)", 1, 14, 3)
     budget = st.number_input("Total budget (approx, in USD)", min_value=1, value=800)
-    # Changed default interests to Food and Nature, as requested in earlier turns
     interests = st.multiselect("Interests", ["Museums","Food","History","Walking tours","Nightlife","Nature","Shopping","Beaches"], default=["Food", "Nature"])
     include_maps = st.checkbox("Include map links / simple routes", value=True)
     use_real_crewai = st.checkbox("Use CrewAI AMP (requires API key + endpoint)", value=False)
