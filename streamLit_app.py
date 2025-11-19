@@ -3,6 +3,12 @@ from datetime import datetime, timedelta
 import time
 import random
 
+# --- TIME LISTS FOR MOCK REALISM ---
+# Outbound times (Morning/Early Afternoon)
+OUTBOUND_TIMES = ["06:15 AM", "07:30 AM", "08:00 AM", "09:45 AM", "11:00 AM", "12:30 PM", "01:00 PM", "02:15 PM"]
+# Return times (Afternoon/Evening)
+RETURN_TIMES = ["01:45 PM", "03:20 PM", "05:00 PM", "06:45 PM", "07:30 PM", "08:15 PM", "09:00 PM"]
+
 # 1. Page Configuration (Must be first)
 st.set_page_config(
     page_title="AI Travel Planner Agent",
@@ -129,9 +135,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Helper Function: Mock Data Generator (UPDATED TO CALCULATE TOTAL COST)
+# 3. Helper Function: Mock Data Generator (UPDATED TO CALCULATE TOTAL COST AND RANDOMIZE TIMES)
 def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, interests):
     budget_symbol = "₹" if currency == "Indian Rupees (₹)" else "$"
+    
+    # Randomize flight times
+    outbound_time = random.choice(OUTBOUND_TIMES)
+    return_time = random.choice(RETURN_TIMES)
     
     # --- FLIGHT GENERATION LOGIC ---
     base_flight_prices = {
@@ -161,7 +171,7 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
     flight_details = {
         "outbound": {
             "date": start_date.strftime("%b %d, %Y"),
-            "time": "08:30 AM",
+            "time": outbound_time, # NOW RANDOMIZED
             "from": "Origin City",
             "to": dest,
             "airline": "AirGo",
@@ -170,7 +180,7 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
         },
         "return": {
             "date": return_date.strftime("%b %d, %Y"),
-            "time": "06:00 PM",
+            "time": return_time, # NOW RANDOMIZED
             "from": dest,
             "to": "Origin City",
             "airline": "AirGo",
@@ -201,6 +211,7 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
         dinner_cost = random.randint(*current_cost_range["meal"]) * conversion_rate
 
         if "Shopping" in interests and budget_level == "Luxury":
+            # Add extra shopping expense if applicable
             museum_cost += random.randint(20, 50) * conversion_rate
         
         # Rounding for clean display
@@ -247,9 +258,9 @@ def convert_itinerary_to_text_content(itinerary_data, destination, flight_data, 
     ret = flight_data["return"]
     
     text_output += f"OUTBOUND: {out['airline']} | {out['date']} @ {out['time']} | Price: {out['display_price']}\n"
-    text_output += f"   -> Route: {out['from']} to {out['to']}\n"
-    text_output += f"RETURN:   {ret['airline']} | {ret['date']} @ {ret['time']} | Price: {ret['display_price']}\n"
-    text_output += f"   -> Route: {ret['from']} to {ret['to']}\n"
+    text_output += f"    -> Route: {out['from']} to {out['to']}\n"
+    text_output += f"RETURN:    {ret['airline']} | {ret['date']} @ {ret['time']} | Price: {ret['display_price']}\n"
+    text_output += f"    -> Route: {ret['from']} to {ret['to']}\n"
     text_output += "--------------------------------------------------------\n\n"
     
     # Add Daily Itinerary
@@ -262,7 +273,7 @@ def convert_itinerary_to_text_content(itinerary_data, destination, flight_data, 
         
     # Add Total Cost
     text_output += "\n========================================================\n"
-    text_output += f"TOTAL ESTIMATED TRAVEL COST (Flights + Daily): {budget_symbol} {total_cost}\n"
+    text_output += f"TOTAL ESTIMATED TRAVEL COST (Flights + Daily): {budget_symbol} {total_cost:,}\n"
     text_output += "========================================================\n"
         
     return text_output.encode('utf-8')
