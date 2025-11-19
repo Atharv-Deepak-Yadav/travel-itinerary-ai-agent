@@ -68,6 +68,20 @@ st.markdown("""
         outline: none !important;
     }
 
+    /* Streamlit Link Button style (for mock booking) */
+    [data-testid="stLinkButton"] > a > button {
+        background: linear-gradient(45deg, #FF8F00, #FFD700); /* Different gradient for contrast */
+        color: #1E1E1E; /* Darker text */
+        font-weight: 800; /* Extra bold */
+        padding: 1rem 1rem;
+    }
+    [data-testid="stLinkButton"] > a > button:hover {
+        background: linear-gradient(45deg, #FFD700, #FF8F00) !important;
+        transform: scale(1.02);
+        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
+    }
+
+
     /* Itinerary Card Styling */
     .day-card {
         background-color: #1E1E1E;
@@ -129,8 +143,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Helper Function: Mock Data Generator (UPDATED TO CALCULATE TOTAL COST)
-def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, interests):
+# 3. Helper Function: Mock Data Generator (UPDATED TO ACCEPT ORIGIN)
+def generate_mock_itinerary(origin, dest, start_date, duration, budget_level, currency, interests):
+    """Generates mock itinerary, now using a dynamic origin city."""
     budget_symbol = "₹" if currency == "Indian Rupees (₹)" else "$"
     
     # --- FLIGHT GENERATION LOGIC ---
@@ -169,7 +184,7 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
         "outbound": {
             "date": start_date.strftime("%b %d, %Y"),
             "time": outbound_time,
-            "from": "Origin City",
+            "from": origin, # Dynamic Origin
             "to": dest,
             "airline": "AirGo",
             "price": single_flight_price, # Stored as raw number for total calculation
@@ -179,7 +194,7 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
             "date": return_date.strftime("%b %d, %Y"),
             "time": return_time,
             "from": dest,
-            "to": "Origin City",
+            "to": origin, # Dynamic Origin
             "airline": "AirGo",
             "price": single_flight_price, # Stored as raw number for total calculation
             "display_price": f"{budget_symbol} {single_flight_price}"
@@ -291,9 +306,9 @@ def convert_itinerary_to_text_content(itinerary_data, destination, flight_data, 
     ret = flight_data["return"]
     
     text_output += f"OUTBOUND: {out['airline']} | {out['date']} @ {out['time']} | Price: {out['display_price']}\n"
-    text_output += f"   -> Route: {out['from']} to {out['to']}\n"
-    text_output += f"RETURN:   {ret['airline']} | {ret['date']} @ {ret['time']} | Price: {ret['display_price']}\n"
-    text_output += f"   -> Route: {ret['from']} to {ret['to']}\n"
+    text_output += f"    -> Route: {out['from']} to {out['to']}\n"
+    text_output += f"RETURN:    {ret['airline']} | {ret['date']} @ {ret['time']} | Price: {ret['display_price']}\n"
+    text_output += f"    -> Route: {ret['from']} to {ret['to']}\n"
     text_output += "--------------------------------------------------------\n\n"
     
     # Add Daily Itinerary
@@ -312,12 +327,13 @@ def convert_itinerary_to_text_content(itinerary_data, destination, flight_data, 
     return text_output.encode('utf-8')
 
 
-# 5. Sidebar - User Inputs
+# 5. Sidebar - User Inputs (UPDATED TO INCLUDE ORIGIN CITY)
 with st.sidebar:
     st.title("🌍 AI Travel Agent")
     st.markdown("---")
     
     # Inputs 
+    origin_city = st.text_input("🛫 Origin City", placeholder="e.g., London, Delhi, Los Angeles")
     destination = st.text_input("📍 Destination", placeholder="e.g., Paris, Tokyo, New York")
     
     col1, col2 = st.columns(2)
@@ -353,24 +369,32 @@ if not generate_btn and "itinerary" not in st.session_state:
     This AI Agent will curate a perfect trip for you based on your preferences.
     
     **How it works:**
-    1. Enter your destination and dates in the sidebar on the left.
-    2. Select your budget and specific interests.
-    3. Click the **Generate Itinerary** button below the inputs!
+    1. Enter your **Origin** and **Destination** in the sidebar on the left.
+    2. Select your dates, budget, and specific interests.
+    3. Click the **Generate Itinerary** button!
     """)
     st.info("👈 Fill out the details in the sidebar and click the button to begin planning!")
 
 else:
     # Loading State
     if generate_btn:
-        with st.spinner(f"🤖 AI Agents are researching {destination}..."):
+        # Input validation for a slightly better user experience
+        if not origin_city or not destination:
+            st.error("Please enter both an **Origin City** and a **Destination** to generate the itinerary.")
+            # Clear the generated data if inputs are missing
+            if "itinerary" in st.session_state:
+                 del st.session_state.itinerary
+            st.stop()
+            
+        with st.spinner(f"🤖 AI Agents are researching flights from {origin_city} to {destination}..."):
             progress_bar = st.progress(0)
             for i in range(100):
                 time.sleep(0.01)
                 progress_bar.progress(i + 1)
-            
-            # Generate Data - Receives itinerary, flight details, and total cost
+                
+            # Generate Data (UPDATED CALL WITH ORIGIN CITY)
             itinerary_data, flight_details, total_cost, budget_symbol = generate_mock_itinerary(
-                destination, start_date, duration, budget_level, currency, interests
+                origin_city, destination, start_date, duration, budget_level, currency, interests
             )
             st.session_state.itinerary = itinerary_data
             st.session_state.flights = flight_details
@@ -385,7 +409,7 @@ else:
         total_cost = st.session_state.total_cost
         budget_symbol = st.session_state.budget_symbol
 
-        st.header(f"✈️ Your Trip to {destination}")
+        st.header(f"✈️ Your Trip from {flights['outbound']['from']} to {destination}")
         st.markdown(f"**Duration:** {duration} Days | **Budget:** {st.session_state.display_budget}")
         st.markdown("---")
 
@@ -420,6 +444,25 @@ else:
             """, unsafe_allow_html=True)
             
         st.markdown("---")
+        
+        # --- BOOKING LINK (NEW SECTION) ---
+        
+        # Create a mock URL for demonstration purposes
+        mock_origin = flights['outbound']['from'].replace(' ', '+')
+        mock_dest = flights['outbound']['to'].replace(' ', '+')
+        mock_date = start_date.strftime('%Y-%m-%d')
+        
+        mock_booking_url = f"https://www.google.com/search?q=book+flights+from+{mock_origin}+to+{mock_dest}+on+{mock_date}"
+
+        st.subheader("🔗 Book Your Flights")
+        st.link_button(
+            "Book Flights Now (Search Google)", 
+            url=mock_booking_url,
+            use_container_width=True
+        )
+        st.caption("Note: This is a placeholder link that performs a Google Search for booking the flight details.")
+        st.markdown("---")
+
 
         # --- DAILY ITINERARY DISPLAY ---
         st.subheader("🗓️ Daily Itinerary")
