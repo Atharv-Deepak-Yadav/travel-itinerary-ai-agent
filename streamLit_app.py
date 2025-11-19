@@ -1,3 +1,4 @@
+
 import streamlit as st
 from datetime import datetime, timedelta
 import time
@@ -134,7 +135,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. Helper Function: Mock Data Generator (UPDATED TO ACCEPT ORIGIN)
+# 3. Helper Function: Mock Data Generator (IMPROVED ACTIVITIES)
 def generate_mock_itinerary(origin, dest, start_date, duration, budget_level, currency, interests):
     budget_symbol = "₹" if currency == "Indian Rupees (₹)" else "$"
     
@@ -142,7 +143,7 @@ def generate_mock_itinerary(origin, dest, start_date, duration, budget_level, cu
     outbound_time = random.choice(OUTBOUND_TIMES)
     return_time = random.choice(RETURN_TIMES)
     
-    # --- FLIGHT GENERATION LOGIC ---
+    # --- FLIGHT GENERATION LOGIC (UNCHANGED) ---
     base_flight_prices = {
         "Budget": (150, 400),
         "Moderate": (400, 800),
@@ -153,11 +154,8 @@ def generate_mock_itinerary(origin, dest, start_date, duration, budget_level, cu
     conversion_rate = 83 if budget_symbol == "₹" else 1 
 
     flight_range = base_flight_prices.get(budget_level, base_flight_prices["Moderate"])
-    
-    # Base price calculation (using USD range, then multiplying by rate)
     raw_single_flight_price = random.randint(*flight_range) * conversion_rate
     
-    # Rounding for clean currency display
     if budget_symbol == "₹":
         single_flight_price = round(raw_single_flight_price / 100) * 100
     else:
@@ -171,7 +169,7 @@ def generate_mock_itinerary(origin, dest, start_date, duration, budget_level, cu
         "outbound": {
             "date": start_date.strftime("%b %d, %Y"),
             "time": outbound_time,
-            "from": origin, # NOW USES USER INPUT
+            "from": origin,
             "to": dest,
             "airline": "AirGo",
             "price": single_flight_price,
@@ -181,15 +179,15 @@ def generate_mock_itinerary(origin, dest, start_date, duration, budget_level, cu
             "date": return_date.strftime("%b %d, %Y"),
             "time": return_time,
             "from": dest,
-            "to": origin, # NOW USES USER INPUT
+            "to": origin,
             "airline": "AirGo",
             "price": single_flight_price,
             "display_price": f"{budget_symbol} {single_flight_price}"
         },
-        "total_cost": total_flight_cost # Total flight cost
+        "total_cost": total_flight_cost
     }
     
-    # --- ITINERARY GENERATION & DAILY COST CALCULATION ---
+    # --- ITINERARY GENERATION & DAILY COST CALCULATION (IMPROVED) ---
     cost_ranges = {
         "Budget": {"meal": (10, 30), "attraction": (20, 50), "misc": (5, 20)},
         "Moderate": {"meal": (30, 70), "attraction": (50, 100), "misc": (20, 50)},
@@ -203,39 +201,78 @@ def generate_mock_itinerary(origin, dest, start_date, duration, budget_level, cu
     for i in range(duration):
         current_day_date = start_date + timedelta(days=i)
         
-        # Costs for the daily activities (Base costs are in USD, then convert)
-        breakfast_cost = random.randint(*current_cost_range["meal"]) * conversion_rate
-        museum_cost = random.randint(*current_cost_range["attraction"]) * conversion_rate
-        street_food_cost = random.randint(*current_cost_range["misc"]) * conversion_rate
-        dinner_cost = random.randint(*current_cost_range["meal"]) * conversion_rate
-
-        if "Shopping" in interests and budget_level == "Luxury":
-            # Add extra shopping expense if applicable
-            museum_cost += random.randint(20, 50) * conversion_rate
+        # Determine the main attraction based on interests
+        main_activity_cost_raw = random.randint(*current_cost_range["attraction"]) * conversion_rate
+        main_activity_cost = round(main_activity_cost_raw / 5) * 5
         
+        main_activity_description = "Visit a Major City Landmark" # Default
+        day_theme = "Exploring Local Gems" # Default theme
+        
+        # Dynamic Activity Selection based on Interests
+        if "History" in interests:
+            main_activity_description = f"Tour the Historical Fortress/Old Town of {dest}"
+            day_theme = "Deep Dive into History & Heritage"
+        elif "Art" in interests:
+            main_activity_description = f"Visit the Premier Art Gallery or Modern Museum"
+            day_theme = "Immersing in Local Art & Design"
+        elif "Nature" in interests:
+            main_activity_description = f"Hike/Visit to the best Natural Park or Scenic Beach"
+            day_theme = "Nature Escapes & Scenic Views"
+        elif "Shopping" in interests:
+            main_activity_description = f"Explore the Central Market and Shopping District"
+            day_theme = "Retail Therapy & Urban Exploration"
+            # Since shopping is usually 'free' entry, adjust the cost to zero for the attraction itself, 
+            # but maybe increase a 'misc' cost later, or leave as an estimate for potential purchases.
+            main_activity_cost = round(random.randint(5, 15) * conversion_rate / 5) * 5 # Small misc fee
+        elif "Adventure" in interests:
+            main_activity_description = "Try a Local Adventure Activity (e.g., Kayaking, Bungee)"
+            day_theme = "Thrills & Outdoor Adventure"
+        elif "Nightlife" in interests:
+            # We will use this for the evening activity, so the day activity can be a landmark
+            main_activity_description = "Visit a Major City Landmark/Viewpoint"
+            day_theme = "City Highlights & Evening Excitement"
+        else: # Default/Food focused
+            main_activity_description = "Walk across the City's Main Bridge or Square"
+            day_theme = "Food, Culture & Local Gems"
+
+
+        # Costs for the daily activities
+        breakfast_cost_raw = random.randint(*current_cost_range["meal"]) * conversion_rate
+        street_food_cost_raw = random.randint(*current_cost_range["misc"]) * conversion_rate
+        dinner_cost_raw = random.randint(*current_cost_range["meal"]) * conversion_rate
+
         # Rounding for clean display
-        breakfast_cost = round(breakfast_cost / 5) * 5
-        museum_cost = round(museum_cost / 5) * 5
-        street_food_cost = round(street_food_cost / 5) * 5
-        dinner_cost = round(dinner_cost / 5) * 5
+        breakfast_cost = round(breakfast_cost_raw / 5) * 5
+        street_food_cost = round(street_food_cost_raw / 5) * 5
+        dinner_cost = round(dinner_cost_raw / 5) * 5
         
         # Sum of costs for the day
-        daily_sum = breakfast_cost + museum_cost + street_food_cost + dinner_cost
+        daily_sum = breakfast_cost + main_activity_cost + street_food_cost + dinner_cost
         total_daily_cost += daily_sum
 
         day_plan = {
             "day": i + 1,
             "date": current_day_date.strftime("%B %d"),
-            "theme": f"Exploring {interests[0] if interests else 'Culture'} & Local Gems",
+            "theme": day_theme,
             "activities": [
-                {"time": "09:00 AM", "activity": f"Breakfast at {dest}'s famous cafe", "cost": f"{budget_symbol} {breakfast_cost}"},
-                {"time": "11:00 AM", "activity": f"Visit the Top Museum in {dest}", "cost": f"{budget_symbol} {museum_cost}"},
-                {"time": "01:30 PM", "activity": "Local Street Food Tour", "cost": f"{budget_symbol} {street_food_cost}"},
+                {"time": "09:00 AM", "activity": f"Breakfast at {dest}'s highly-rated cafe", "cost": f"{budget_symbol} {breakfast_cost}"},
+                {"time": "11:00 AM", "activity": main_activity_description, "cost": f"{budget_symbol} {main_activity_cost}"},
+                {"time": "01:30 PM", "activity": "Local Street Food Tour or Quick Lunch", "cost": f"{budget_symbol} {street_food_cost}"},
                 {"time": "04:00 PM", "activity": "Relaxing walk through the city park", "cost": "Free"},
                 {"time": "07:30 PM", "activity": "Dinner with a View", "cost": f"{budget_symbol} {dinner_cost}"},
             ],
             "daily_cost": daily_sum # Stored raw number for total calculation
         }
+        
+        # Specific adjustment for Nightlife
+        if "Nightlife" in interests:
+             # Replace the 7:30 PM activity with a nightlife focus and possibly higher cost
+             night_cost_raw = random.randint(80, 150) * conversion_rate
+             night_cost = round(night_cost_raw / 5) * 5
+             daily_sum += (night_cost - dinner_cost) # Adjust total cost
+             day_plan["daily_cost"] = daily_sum
+             day_plan["activities"][4] = {"time": "08:30 PM", "activity": "Experience the Local Nightlife/Best Rooftop Bar", "cost": f"{budget_symbol} {night_cost}"}
+
         itinerary.append(day_plan)
         
     # --- FINAL TOTAL CALCULATION ---
@@ -268,7 +305,7 @@ def convert_itinerary_to_text_content(itinerary_data, destination, flight_data, 
         text_output += "--------------------------------------------------------\n"
         for act in day['activities']:
             text_output += f"{act['time']} | {act['cost']:<6} | {act['activity']}\n"
-        text_output += f"Daily Cost: {budget_symbol} {day['daily_cost']}\n" # Include daily cost in download
+        text_output += f"Daily Cost: {budget_symbol} {day['daily_cost']:,}\n" # Include daily cost in download
         
     # Add Total Cost
     text_output += "\n========================================================\n"
@@ -292,7 +329,9 @@ with st.sidebar:
     
     col1, col2 = st.columns(2)
     with col1:
-        start_date = st.date_input("📅 Start Date")
+        # Check for initial date in session state to prevent date rollback after generate
+        default_start_date = st.session_state.get('start_date', datetime.today().date())
+        start_date = st.date_input("📅 Start Date", value=default_start_date)
     with col2:
         duration = st.number_input("🌙 Days", min_value=1, max_value=30, value=3)
 
@@ -306,8 +345,13 @@ with st.sidebar:
     interests = st.multiselect(
         "❤️ Interests",
         ["History", "Art", "Food", "Nature", "Shopping", "Nightlife", "Adventure"],
-        default=["Food", "Nature"]
+        # Ensure default is only 'Food' and 'Nature' if no previous selection exists
+        default=st.session_state.get('interests_default', ["Food", "Nature"])
     )
+    
+    # Update session state for next run
+    st.session_state.start_date = start_date
+    st.session_state.interests_default = interests
     
     st.markdown("---")
     
@@ -329,8 +373,6 @@ if not generate_btn and "itinerary" not in st.session_state:
     st.info("👈 Fill out the details in the sidebar and click the button to begin planning!")
 
 else:
-    # Check if a city was provided, otherwise default to a generic name for the mock data
-    # We use 'New York' if no city is provided, but we require a destination to proceed past the welcome screen.
     final_departure_city = departure_city or "Your City"
 
     # Loading State
