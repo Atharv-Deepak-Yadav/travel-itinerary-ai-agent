@@ -158,10 +158,17 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
 
     return_date = start_date + timedelta(days=duration)
     
+    # FIX: Use random flight times for better simulation
+    possible_outbound_times = ["06:00 AM", "08:30 AM", "10:15 AM", "12:45 PM", "02:30 PM", "04:00 PM"]
+    possible_return_times = ["03:00 PM", "06:00 PM", "08:45 PM", "10:30 PM", "11:55 PM"]
+
+    outbound_time = random.choice(possible_outbound_times)
+    return_time = random.choice(possible_return_times)
+
     flight_details = {
         "outbound": {
             "date": start_date.strftime("%b %d, %Y"),
-            "time": "08:30 AM",
+            "time": outbound_time,
             "from": "Origin City",
             "to": dest,
             "airline": "AirGo",
@@ -170,7 +177,7 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
         },
         "return": {
             "date": return_date.strftime("%b %d, %Y"),
-            "time": "06:00 PM",
+            "time": return_time,
             "from": dest,
             "to": "Origin City",
             "airline": "AirGo",
@@ -191,8 +198,18 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
     itinerary = []
     total_daily_cost = 0
     
+    # Use selected interests to define daily themes
+    default_interests = ["History", "Art", "Food", "Nature", "Shopping", "Nightlife", "Adventure"]
+    if not interests:
+        interests = ["Culture"] # Fallback if user selects nothing
+    
+    interest_cycle = interests * (duration // len(interests) + 1)
+    
     for i in range(duration):
         current_day_date = start_date + timedelta(days=i)
+        
+        # Pick a primary theme for the day
+        theme = interest_cycle[i]
         
         # Costs for the daily activities (Base costs are in USD, then convert)
         breakfast_cost = random.randint(*current_cost_range["meal"]) * conversion_rate
@@ -200,6 +217,33 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
         street_food_cost = random.randint(*current_cost_range["misc"]) * conversion_rate
         dinner_cost = random.randint(*current_cost_range["meal"]) * conversion_rate
 
+        # Initialize activity variables for the loop to avoid UnboundLocalError
+        morning_activity = f"Breakfast at a highly-rated spot"
+        main_activity = f"Visit a major attraction related to {theme}"
+        dinner_activity = "Dinner with a View"
+
+        # Simple logic to make activities match the theme
+        if theme == "Food":
+            main_activity = f"Gourmet culinary class or food market visit"
+            morning_activity = f"Breakfast at {dest}'s famous bakery"
+        elif theme == "Nature":
+            main_activity = f"Hike to the scenic {dest} viewpoint"
+            morning_activity = f"Early morning nature walk"
+        elif theme == "History":
+            main_activity = f"Full day tour of the main historical site/fortress"
+            morning_activity = f"Breakfast near the old town"
+        elif theme == "Art":
+            main_activity = f"Visit the city's premier art gallery or museum"
+            morning_activity = f"Coffee and gallery browsing"
+        elif theme == "Shopping":
+            main_activity = f"Explore the major commercial district or bazaar"
+            morning_activity = f"Window shopping and coffee"
+        elif theme == "Nightlife":
+            main_activity = f"Relaxing walk through the city park" # Keep the afternoon calm
+            dinner_activity = f"Explore the vibrant nightlife district"
+            dinner_cost += random.randint(30, 80) * conversion_rate # Higher cost for evening
+        
+        # If interests includes 'Shopping' and budget is 'Luxury', slightly increase costs
         if "Shopping" in interests and budget_level == "Luxury":
             museum_cost += random.randint(20, 50) * conversion_rate
         
@@ -216,13 +260,13 @@ def generate_mock_itinerary(dest, start_date, duration, budget_level, currency, 
         day_plan = {
             "day": i + 1,
             "date": current_day_date.strftime("%B %d"),
-            "theme": f"Exploring {interests[0] if interests else 'Culture'} & Local Gems",
+            "theme": f"Focused on {theme}",
             "activities": [
-                {"time": "09:00 AM", "activity": f"Breakfast at {dest}'s famous cafe", "cost": f"{budget_symbol} {breakfast_cost}"},
-                {"time": "11:00 AM", "activity": f"Visit the Top Museum in {dest}", "cost": f"{budget_symbol} {museum_cost}"},
-                {"time": "01:30 PM", "activity": "Local Street Food Tour", "cost": f"{budget_symbol} {street_food_cost}"},
-                {"time": "04:00 PM", "activity": "Relaxing walk through the city park", "cost": "Free"},
-                {"time": "07:30 PM", "activity": "Dinner with a View", "cost": f"{budget_symbol} {dinner_cost}"},
+                {"time": "09:00 AM", "activity": morning_activity, "cost": f"{budget_symbol} {breakfast_cost}"},
+                {"time": "11:00 AM", "activity": main_activity, "cost": f"{budget_symbol} {museum_cost}"},
+                {"time": "01:30 PM", "activity": "Local Street Food Tour or Lunch", "cost": f"{budget_symbol} {street_food_cost}"},
+                {"time": "04:00 PM", "activity": "Relaxing walk through the city park or quiet neighborhood", "cost": "Free"},
+                {"time": "07:30 PM", "activity": dinner_activity, "cost": f"{budget_symbol} {dinner_cost}"},
             ],
             "daily_cost": daily_sum # Stored raw number for total calculation
         }
@@ -247,9 +291,9 @@ def convert_itinerary_to_text_content(itinerary_data, destination, flight_data, 
     ret = flight_data["return"]
     
     text_output += f"OUTBOUND: {out['airline']} | {out['date']} @ {out['time']} | Price: {out['display_price']}\n"
-    text_output += f"    -> Route: {out['from']} to {out['to']}\n"
-    text_output += f"RETURN:    {ret['airline']} | {ret['date']} @ {ret['time']} | Price: {ret['display_price']}\n"
-    text_output += f"    -> Route: {ret['from']} to {ret['to']}\n"
+    text_output += f"   -> Route: {out['from']} to {out['to']}\n"
+    text_output += f"RETURN:   {ret['airline']} | {ret['date']} @ {ret['time']} | Price: {ret['display_price']}\n"
+    text_output += f"   -> Route: {ret['from']} to {ret['to']}\n"
     text_output += "--------------------------------------------------------\n\n"
     
     # Add Daily Itinerary
@@ -257,9 +301,7 @@ def convert_itinerary_to_text_content(itinerary_data, destination, flight_data, 
         text_output += f"\n🗓️ DAY {day['day']}: {day['theme']} ({day['date']})\n"
         text_output += "--------------------------------------------------------\n"
         for act in day['activities']:
-            # Align the cost column
-            cost_str = act['cost'].ljust(6)
-            text_output += f"{act['time']} | {cost_str} | {act['activity']}\n"
+            text_output += f"{act['time']} | {act['cost']:<6} | {act['activity']}\n"
         text_output += f"Daily Cost: {budget_symbol} {day['daily_cost']}\n" # Include daily cost in download
         
     # Add Total Cost
@@ -280,8 +322,7 @@ with st.sidebar:
     
     col1, col2 = st.columns(2)
     with col1:
-        # Default start date to today
-        start_date = st.date_input("📅 Start Date", value=datetime.today().date())
+        start_date = st.date_input("📅 Start Date")
     with col2:
         duration = st.number_input("🌙 Days", min_value=1, max_value=30, value=3)
 
@@ -321,31 +362,24 @@ if not generate_btn and "itinerary" not in st.session_state:
 else:
     # Loading State
     if generate_btn:
-        # Check if destination is provided before proceeding
-        if not destination:
-            st.error("Please enter a destination to generate the itinerary!")
-            # Reset button state to prevent immediate re-run
-            st.session_state.generate_btn_sidebar = False 
-        else:
-            with st.spinner(f"🤖 AI Agents are researching {destination}..."):
-                progress_bar = st.progress(0)
-                for i in range(100):
-                    time.sleep(0.01)
-                    progress_bar.progress(i + 1)
-                
-                # Generate Data - Receives itinerary, flight details, and total cost
-                itinerary_data, flight_details, total_cost, budget_symbol = generate_mock_itinerary(
-                    destination, start_date, duration, budget_level, currency, interests
-                )
-                st.session_state.itinerary = itinerary_data
-                st.session_state.flights = flight_details
-                st.session_state.total_cost = total_cost
-                st.session_state.budget_symbol = budget_symbol
-                st.session_state.display_budget = f"{budget_level} ({currency})"
-                st.session_state.last_destination = destination # Store last destination to prevent re-run on page refresh
-
+        with st.spinner(f"🤖 AI Agents are researching {destination}..."):
+            progress_bar = st.progress(0)
+            for i in range(100):
+                time.sleep(0.01)
+                progress_bar.progress(i + 1)
+            
+            # Generate Data - Receives itinerary, flight details, and total cost
+            itinerary_data, flight_details, total_cost, budget_symbol = generate_mock_itinerary(
+                destination, start_date, duration, budget_level, currency, interests
+            )
+            st.session_state.itinerary = itinerary_data
+            st.session_state.flights = flight_details
+            st.session_state.total_cost = total_cost
+            st.session_state.budget_symbol = budget_symbol
+            st.session_state.display_budget = f"{budget_level} ({currency})"
+    
     # Result Display (State 1)
-    if "itinerary" in st.session_state and st.session_state.last_destination == destination:
+    if "itinerary" in st.session_state:
         data = st.session_state.itinerary
         flights = st.session_state.flights
         total_cost = st.session_state.total_cost
@@ -390,11 +424,13 @@ else:
         # --- DAILY ITINERARY DISPLAY ---
         st.subheader("🗓️ Daily Itinerary")
         for day in data:
-            # Use st.expander for a cleaner look when there are many days
-            with st.expander(f"**Day {day['day']}: {day['theme']}** ({day['date']}) - Estimated Cost: {budget_symbol} {day['daily_cost']:,}"):
-                
-                # Use a custom container for styling the activities
-                st.markdown('<div class="day-card" style="padding: 10px; border:none; box-shadow:none;">', unsafe_allow_html=True)
+            with st.container():
+                st.markdown(f"""
+                <div class="day-card">
+                    <h3 style="margin-top:0;">Day {day['day']}: {day['theme']}</h3>
+                    <p style="color:#888; margin-bottom:15px;">{day['date']}</p>
+                </div>
+                """, unsafe_allow_html=True)
                 
                 for act in day['activities']:
                     c1, c2, c3 = st.columns([2, 6, 2])
@@ -404,13 +440,12 @@ else:
                         st.markdown(f"<span class='activity-title'>{act['activity']}</span>", unsafe_allow_html=True)
                     with c3:
                         st.markdown(f"<span class='cost-tag'>{act['cost']}</span>", unsafe_allow_html=True)
-                    st.markdown('<hr style="margin-top: 5px; margin-bottom: 5px; border-top: 1px solid #333;">', unsafe_allow_html=True)
-
-                st.markdown('</div>', unsafe_allow_html=True)
+                    st.divider()
 
         st.markdown("---")
 
         # --- TOTAL COST DISPLAY ---
+        st.subheader("💰 Budget Summary")
         st.markdown(f"""
             <div class="total-cost-box">
                 <p class="total-cost-label">ESTIMATED TOTAL TRIP COST</p>
