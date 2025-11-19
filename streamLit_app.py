@@ -462,7 +462,10 @@ def display_welcome_page():
         <h1 class="welcome-title">Travel Assistant Pro</h1>
         <p class="welcome-subtitle">Your AI-powered Itinerary Planner. Just tell us where and when!</p>
         
-        <img src="https://placehold.co/600x200/FF8F00/0E1117?text=Plan+Your+Next+Adventure" style="border-radius: 10px; margin-bottom: 40px; box-shadow: 0 5px 15px rgba(255, 75, 75, 0.2);" alt="Travel Planner Banner">
+        <!-- Placeholder Image fixed to avoid string issues -->
+        <img src="https://placehold.co/600x200/FF8F00/0E1117?text=Plan+Your+Next+Adventure" 
+             style="border-radius: 10px; margin-bottom: 40px; box-shadow: 0 5px 15px rgba(255, 75, 75, 0.2);" 
+             alt="Travel Planner Banner">
 
         <h3>Features</h3>
         <div style="display: flex; justify-content: center; flex-wrap: wrap;">
@@ -477,7 +480,7 @@ def display_welcome_page():
             </div>
         </div>
         <p style="margin-top: 30px; font-size: 1.1em; color: #707070;">
-            Fill out the details in the sidebar to generate your dream trip now!
+            Fill out the details in the sidebar and click the button to generate your dream trip now!
         </p>
     </div>
     """, unsafe_allow_html=True)
