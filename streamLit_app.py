@@ -2,7 +2,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 import time
 import pandas as pd
-import io # Needed for file buffer operations
+# Removed 'from fpdf import FPDF' to fix the NameError
 
 # 1. Page Configuration (Must be first)
 st.set_page_config(
@@ -24,12 +24,11 @@ st.markdown("""
     /* Sidebar styling and ensuring white text for labels/titles */
     [data-testid="stSidebar"] {
         background-color: #262730;
-        color: #FFFFFF !important; /* Force white color for general sidebar text */
     }
     
-    /* Ensuring all input labels in the sidebar are white */
+    /* Ensuring all input labels and titles in the sidebar are white */
     .stTextInput label, .stDateInput label, .stNumberInput label, .stSelectbox label, .stMultiSelect label, 
-    [data-testid="stSidebar"] .stTitle {
+    [data-testid="stSidebar"] .stTitle, [data-testid="stSidebar"] .stMarkdown {
         color: #FFFFFF !important;
     }
     
@@ -44,9 +43,19 @@ st.markdown("""
         width: 100%;
         transition: all 0.3s ease;
     }
+    /* FIX: Remove white hover effect and customize hover appearance */
     div.stButton > button:hover {
         transform: scale(1.02);
         box-shadow: 0 4px 15px rgba(255, 75, 75, 0.4);
+        /* Slight color change on hover to hide the default white shadow */
+        background: linear-gradient(45deg, #D44040, #D47A00) !important; 
+        color: white !important;
+        border-color: transparent !important;
+    }
+    /* FIX: Remove white box-shadow on focus (after click) */
+    div.stButton > button:focus:not(:active) {
+        box-shadow: 0 0 0 0.2rem rgba(255, 75, 75, 0.4) !important; 
+        outline: none !important;
     }
 
     /* Itinerary Card Styling */
@@ -81,7 +90,6 @@ st.markdown("""
 
 # 3. Helper Function: Mock Data Generator
 def generate_mock_itinerary(dest, days, interests):
-    # This simulates the JSON output your CrewAI agent will eventually generate
     itinerary = []
     current_date = datetime.now()
     
@@ -101,45 +109,30 @@ def generate_mock_itinerary(dest, days, interests):
         itinerary.append(day_plan)
     return itinerary
 
-# 4. NEW Helper Function: Data Converters for Downloads
+# 4. Data Converter for PDF (Text Content)
 
-def convert_itinerary_to_markdown(itinerary_data, destination):
-    """Converts the itinerary JSON structure to a readable Markdown/TXT format."""
-    markdown_output = f"# ✈️ Itinerary for {destination}\n\n"
-    markdown_output += f"**Generated On:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n---\n"
+def convert_itinerary_to_pdf_content(itinerary_data, destination):
+    """Converts the itinerary data into a readable text format, 
+       which will be saved as a .pdf file."""
+    text_output = f"TRAVEL ITINERARY: {destination.upper()}\n"
+    text_output += f"Generated On: {datetime.now().strftime('%Y-%m-%d')}\n\n"
+    text_output += "--------------------------------------------------------\n"
     
     for day in itinerary_data:
-        markdown_output += f"## 🗓️ Day {day['day']}: {day['theme']} ({day['date']})\n\n"
+        text_output += f"\nDAY {day['day']}: {day['theme']} ({day['date']})\n"
+        text_output += "--------------------------------------------------------\n"
         for act in day['activities']:
-            markdown_output += f"* **{act['time']}**: {act['activity']} ({act['cost']})\n"
-        markdown_output += "\n---\n"
+            text_output += f"{act['time']} | {act['cost']:<6} | {act['activity']}\n"
         
-    return markdown_output
-
-def convert_itinerary_to_csv(itinerary_data):
-    """Converts the itinerary JSON structure to a DataFrame for CSV download."""
-    rows = []
-    for day in itinerary_data:
-        for act in day['activities']:
-            rows.append({
-                "Day": day['day'],
-                "Date": day['date'],
-                "Theme": day['theme'],
-                "Time": act['time'],
-                "Activity": act['activity'],
-                "Cost": act['cost']
-            })
-    df = pd.DataFrame(rows)
-    return df.to_csv(index=False).encode('utf-8')
+    return text_output.encode('utf-8')
 
 
 # 5. Sidebar - User Inputs
 with st.sidebar:
-    # Ensure the title and all subsequent text/labels are white via CSS above
     st.title("🌍 AI Travel Agent")
     st.markdown("---")
     
-    # Inputs
+    # Inputs 
     destination = st.text_input("📍 Destination", placeholder="e.g., Paris, Tokyo, New York")
     
     col1, col2 = st.columns(2)
@@ -199,7 +192,6 @@ else:
         # Display Day by Day cards
         for day in data:
             with st.container():
-                # We use HTML to make it look like the "Second Photo" cards
                 st.markdown(f"""
                 <div class="day-card">
                     <h3 style="margin-top:0;">🗓️ Day {day['day']}: {day['theme']}</h3>
@@ -218,37 +210,17 @@ else:
                         st.markdown(f"<span class='cost-tag'>{act['cost']}</span>", unsafe_allow_html=True)
                     st.divider()
 
-        # 7. Download Options (FIXED)
+        # 7. Download Option (Single PDF button)
         
         # Prepare data for download
-        markdown_data = convert_itinerary_to_markdown(data, destination)
-        csv_data = convert_itinerary_to_csv(data)
+        pdf_data = convert_itinerary_to_pdf_content(data, destination)
 
-        st.markdown("### 📥 Download Options")
-        c1, c2, c3 = st.columns(3)
+        st.markdown("### 📥 Download Itinerary")
         
-        with c1:
-            st.download_button(
-                label="Download as Text (.md)", 
-                data=markdown_data, 
-                file_name=f"{destination}_itinerary.md",
-                mime="text/markdown"
-            )
-        
-        with c2:
-            st.download_button(
-                label="Download as CSV", 
-                data=csv_data, 
-                file_name=f"{destination}_itinerary.csv",
-                mime="text/csv"
-            )
-            
-        with c3:
-            # We can't generate a true ICS file easily without more data/logic, 
-            # so we offer a simple text list of activities as a 'calendar helper'.
-            st.download_button(
-                label="Download Activity List",
-                data=markdown_data, # Reusing markdown for simplicity
-                file_name=f"{destination}_activities.txt",
-                mime="text/plain"
-            )
+        st.download_button(
+            label="Download as PDF", 
+            data=pdf_data, 
+            file_name=f"{destination}_itinerary.pdf",
+            mime="application/pdf", # Forces the file to download as a .pdf
+            use_container_width=True
+        )
